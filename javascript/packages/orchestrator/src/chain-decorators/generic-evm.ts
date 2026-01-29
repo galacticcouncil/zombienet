@@ -52,7 +52,7 @@ export function getNodeKey(node: Node): GenesisNodeKey {
 
 export async function addCollatorSelection(specPath: string, node: Node) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
     if (
       !runtimeConfig?.collatorSelection?.invulnerables &&
@@ -77,7 +77,7 @@ export async function addCollatorSelection(specPath: string, node: Node) {
       ],
     ]);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
   } catch (err) {
     console.error(`\n${decorators.red(`Fail to add collator: ${node}`)}`);
     throw err;

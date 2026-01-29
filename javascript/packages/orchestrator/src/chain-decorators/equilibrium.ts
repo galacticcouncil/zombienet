@@ -14,7 +14,7 @@ export async function addAuthority(
   node: Node,
   key: GenesisNodeKey,
 ) {
-  const chainSpec = readAndParseChainSpec(specPath);
+  const chainSpec = await readAndParseChainSpec(specPath);
 
   const { sr_stash } = node.accounts;
 
@@ -44,7 +44,7 @@ export async function addAuthority(
     ],
   ]);
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
 }
 
 export function getNodeKey(node: Node, useStash = true): GenesisNodeKey {
@@ -63,8 +63,8 @@ export function getNodeKey(node: Node, useStash = true): GenesisNodeKey {
 
   return key;
 }
-export function clearAuthorities(specPath: string) {
-  const chainSpec = readAndParseChainSpec(specPath);
+export async function clearAuthorities(specPath: string) {
+  const chainSpec = await readAndParseChainSpec(specPath);
   const runtimeConfig = getRuntimeConfig(chainSpec);
 
   // clear keys
@@ -82,7 +82,7 @@ export function clearAuthorities(specPath: string) {
   if (runtimeConfig?.eqSessionManager)
     runtimeConfig.eqSessionManager = { validators: [] };
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
   const logTable = new CreateLogTable({
     colWidths: [120],
   });

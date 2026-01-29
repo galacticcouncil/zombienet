@@ -30,7 +30,7 @@ export function getNodeKey(node: Node): GenesisNodeKey {
 async function clearAuthorities(specPath: string) {
   await _clearAuthorities(specPath);
 
-  const chainSpec = readAndParseChainSpec(specPath);
+  const chainSpec = await readAndParseChainSpec(specPath);
   const runtimeConfig = getRuntimeConfig(chainSpec);
 
   // Clear parachainStaking candidates
@@ -40,11 +40,11 @@ async function clearAuthorities(specPath: string) {
     runtimeConfig.parachainStaking.delegations.length = 0;
   }
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
 }
 
 async function addParaCustom(specPath: string, node: Node) {
-  const chainSpec = readAndParseChainSpec(specPath);
+  const chainSpec = await readAndParseChainSpec(specPath);
   const runtimeConfig = getRuntimeConfig(chainSpec);
 
   if (!runtimeConfig?.parachainStaking) return;
@@ -64,7 +64,7 @@ async function addParaCustom(specPath: string, node: Node) {
     0,
   ]);
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
 }
 
 export default {

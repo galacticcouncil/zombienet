@@ -44,7 +44,7 @@ function getAuthorityKeys(chainSpec: ChainSpec) {
 }
 
 async function addAuthority(specPath: string, node: Node, key: GenesisNodeKey) {
-  const chainSpec = readAndParseChainSpec(specPath);
+  const chainSpec = await readAndParseChainSpec(specPath);
 
   const { sr_account } = node.accounts;
 
@@ -73,13 +73,13 @@ async function addAuthority(specPath: string, node: Node, key: GenesisNodeKey) {
       ]),
     );
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
 }
 
 async function clearAuthorities(specPath: string) {
   await _clearAuthorities(specPath);
 
-  const chainSpec = readAndParseChainSpec(specPath);
+  const chainSpec = await readAndParseChainSpec(specPath);
   const runtimeConfig = getRuntimeConfig(chainSpec);
 
   // clear authorMapping
@@ -93,7 +93,7 @@ async function clearAuthorities(specPath: string) {
     runtimeConfig.parachainStaking.delegations.length = 0;
   }
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
 }
 
 async function generateKeyForNode(nodeName?: string): Promise<any> {
@@ -123,7 +123,7 @@ export function getNodeKey(node: Node): GenesisNodeKey {
 }
 
 async function addParaCustom(specPath: string, node: Node) {
-  const chainSpec = readAndParseChainSpec(specPath);
+  const chainSpec = await readAndParseChainSpec(specPath);
   const runtimeConfig = getRuntimeConfig(chainSpec);
 
   if (!runtimeConfig?.parachainStaking) return;
@@ -157,7 +157,7 @@ async function addParaCustom(specPath: string, node: Node) {
     stakingBond,
   ]);
 
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
 }
 
 function getProcessStartTimeKey() {

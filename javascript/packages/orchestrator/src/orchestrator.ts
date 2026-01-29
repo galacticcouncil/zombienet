@@ -261,7 +261,7 @@ export async function start(
 
     // Check if the chain spec is in raw format
     // Could be if the chain_spec_path was set
-    const chainSpecContent = readAndParseChainSpec(chainSpecFullPathPlain);
+    const chainSpecContent = await readAndParseChainSpec(chainSpecFullPathPlain);
     const relayChainSpecIsRaw = Boolean(chainSpecContent.genesis?.raw);
 
     network.chainId = chainSpecContent.id;
@@ -324,15 +324,15 @@ export async function start(
     // make chain unique if is set
     if (random_suffix_to_isolate) {
       // customize forkId/protocolId to make chain uniq
-      const chainSpecContent = readAndParseChainSpec(chainSpecFullPath);
+      const chainSpecContent = await readAndParseChainSpec(chainSpecFullPath);
       chainSpecContent.forkId = `${chainSpecContent.protocolId}${random_suffix_to_isolate}`;
       chainSpecContent.protocolId = `${chainSpecContent.protocolId}${random_suffix_to_isolate}`;
-      writeChainSpec(chainSpecFullPath, chainSpecContent);
+      await writeChainSpec(chainSpecFullPath, chainSpecContent);
     }
 
     // ensure chain raw is ok
     try {
-      const chainSpecContent = readAndParseChainSpec(chainSpecFullPathPlain);
+      const chainSpecContent = await readAndParseChainSpec(chainSpecFullPathPlain);
       debug(`Chain name: ${chainSpecContent.name}`);
 
       new CreateLogTable({ colWidths: [120], doubleBorder: true }).pushToPrint([

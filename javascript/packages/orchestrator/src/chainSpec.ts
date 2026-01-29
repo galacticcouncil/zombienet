@@ -8,6 +8,10 @@ import {
 } from "@zombienet/utils";
 import crypto from "crypto";
 import fs from "fs";
+import { Transform } from "stream";
+import { parser } from "stream-json";
+import Assembler from "stream-json/Assembler";
+import { JsonStreamStringify } from "json-stream-stringify";
 import { generateKeyFromSeed } from "./keys";
 import { ChainSpec } from "./types";
 import { HrmpChannelsConfig, Node } from "./sharedTypes";
@@ -58,9 +62,9 @@ function getAuthorityKeys(chainSpec: ChainSpec, keyType: KeyType = "session") {
 }
 
 // Remove all existing keys from `session.keys` / aura.authorities / grandpa.authorities
-export function clearAuthorities(specPath: string) {
+export async function clearAuthorities(specPath: string) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
 
     // clear keys
@@ -86,7 +90,7 @@ export function clearAuthorities(specPath: string) {
       runtimeConfig.staking.validatorCount = 0;
     }
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
     const logTable = new CreateLogTable({
       colWidths: [120],
     });
@@ -101,7 +105,7 @@ export function clearAuthorities(specPath: string) {
 
 export async function addBalances(specPath: string, nodes: Node[]) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
     if (!runtimeConfig.balances) {
       console.error(
@@ -146,7 +150,7 @@ export async function addBalances(specPath: string, nodes: Node[]) {
 
     runtimeConfig.balances.balances = Object.entries(balanceMap);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
   } catch (err) {
     console.error(
       `\n${decorators.red(`Fail to add balance for nodes: ${nodes}`)}`,
@@ -198,7 +202,7 @@ export async function addAuthority(
   key: GenesisNodeKey,
 ) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
 
     const { sr_stash } = node.accounts;
 
@@ -217,7 +221,7 @@ export async function addAuthority(
       ],
     ]);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
   } catch (err) {
     console.error(
       `\n${decorators.red(`Fail to add authority for node: ${node}`)}`,
@@ -229,7 +233,7 @@ export async function addAuthority(
 /// Add node to staking
 export async function addStaking(specPath: string, node: Node) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
     if (!runtimeConfig?.staking) return;
 
@@ -257,7 +261,7 @@ export async function addStaking(specPath: string, node: Node) {
       ],
     ]);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
   } catch (err) {
     console.error(
       `\n${decorators.red(`Fail to add staking for node: ${node}`)}`,
@@ -269,7 +273,7 @@ export async function addStaking(specPath: string, node: Node) {
 /// Add collators
 export async function addCollatorSelection(specPath: string, node: Node) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
     if (!runtimeConfig?.collatorSelection?.invulnerables) return;
 
@@ -287,7 +291,7 @@ export async function addCollatorSelection(specPath: string, node: Node) {
       ],
     ]);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
   } catch (err) {
     console.error(`\n${decorators.red(`Fail to add collator: ${node}`)}`);
     throw err;
@@ -306,14 +310,14 @@ export async function addAuraAuthority(
   try {
     const { sr_account } = accounts;
 
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
 
     const keys = getAuthorityKeys(chainSpec, "aura");
     if (!keys) return;
 
     keys.push(sr_account.address);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
 
     new CreateLogTable({
       colWidths: [30, 20, 70],
@@ -340,14 +344,14 @@ export async function addGrandpaAuthority(
   try {
     const { ed_account } = accounts;
 
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
 
     const keys = getAuthorityKeys(chainSpec, "grandpa");
     if (!keys) return;
 
     keys.push([ed_account.address, 1]);
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
     const logLine = `👤 Added Genesis Authority (GRANDPA) ${decorators.green(
       name,
     )} - ${decorators.magenta(ed_account.address)}`;
@@ -369,7 +373,7 @@ export async function generateNominators(
   validators: string[],
 ) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
     if (!runtimeConfig?.staking) return;
 
@@ -401,7 +405,7 @@ export async function generateNominators(
       ]);
     }
 
-    writeChainSpec(specPath, chainSpec);
+    await writeChainSpec(specPath, chainSpec);
     logLine = `👤 Added random Nominators (${decorators.green(
       randomNominatorsCount,
     )})`;
@@ -427,7 +431,7 @@ export async function addParachainToGenesis(
   parachain = true,
 ) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const runtimeConfig = getRuntimeConfig(chainSpec);
 
     let paras = undefined;
@@ -451,7 +455,7 @@ export async function addParachainToGenesis(
 
       paras.push(new_para);
 
-      writeChainSpec(specPath, chainSpec);
+      await writeChainSpec(specPath, chainSpec);
       const logLine = `${decorators.green(
         "✓ Added Genesis Parachain",
       )} ${para_id}`;
@@ -478,7 +482,7 @@ export async function addParachainToGenesis(
 // It will try to match keys which exist within the configuration and update the value.
 export async function changeGenesisConfig(specPath: string, updates: any) {
   try {
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
     const msg = `⚙ Updating Chain Genesis Configuration (path: ${specPath})`;
     new CreateLogTable({ colWidths: [120], doubleBorder: true }).pushToPrint([
       [`\n\t ${decorators.green(msg)}`],
@@ -488,7 +492,7 @@ export async function changeGenesisConfig(specPath: string, updates: any) {
       const config = chainSpec.genesis;
       findAndReplaceConfig(updates, config);
 
-      writeChainSpec(specPath, chainSpec);
+      await writeChainSpec(specPath, chainSpec);
     }
   } catch (err) {
     console.error(`\n${decorators.red("Fail to customize genesis")}`);
@@ -499,7 +503,7 @@ export async function changeGenesisConfig(specPath: string, updates: any) {
 export async function addBootNodes(specPath: string, addresses: string[]) {
   let chainSpec;
   try {
-    chainSpec = readAndParseChainSpec(specPath);
+    chainSpec = await readAndParseChainSpec(specPath);
   } catch (e: any) {
     if (e.code !== "ERR_FS_FILE_TOO_LARGE") throw e;
 
@@ -516,7 +520,7 @@ export async function addBootNodes(specPath: string, addresses: string[]) {
 
   // prevent dups bootnodes
   chainSpec.bootNodes = [...new Set(addresses)];
-  writeChainSpec(specPath, chainSpec);
+  await writeChainSpec(specPath, chainSpec);
   const logTable = new CreateLogTable({ colWidths: [120] });
   if (addresses.length) {
     logTable.pushToPrint([
@@ -539,7 +543,7 @@ export async function addHrmpChannelsToGenesis(
       [`\n\t ${decorators.green("Adding Genesis HRMP Channels")}`],
     ]);
 
-    const chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpec(specPath);
 
     for (const h of hrmp_channels) {
       const newHrmpChannel = [
@@ -591,7 +595,7 @@ export async function addHrmpChannelsToGenesis(
         process.exit(1);
       }
 
-      writeChainSpec(specPath, chainSpec);
+      await writeChainSpec(specPath, chainSpec);
     }
   } catch (err) {
     console.error(
@@ -666,32 +670,89 @@ export function getRuntimeConfig(chainSpec: any) {
   );
 }
 
-export function readAndParseChainSpec(specPath: string) {
-  const rawdata = fs.readFileSync(specPath);
-  let chainSpec;
+async function parseChainSpecStream(specPath: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const readStream = fs.createReadStream(specPath);
+    const jsonParser = parser();
+    const assembler = Assembler.connectTo(jsonParser);
+
+    assembler.on("done", (asm: any) => resolve(asm.current));
+    jsonParser.on("error", (err: Error) => reject(err));
+    readStream.on("error", (err: Error) => reject(err));
+
+    readStream.pipe(jsonParser);
+  });
+}
+
+export async function readAndParseChainSpec(specPath: string): Promise<any> {
   try {
-    chainSpec = JSONbig.parse(rawdata);
+    const chainSpec = await parseChainSpecStream(specPath);
     return chainSpec;
-  } catch {
+  } catch (err: any) {
     console.error(
       `\n\t\t  ${decorators.red("  ⚠ failed to parse the chain spec")}`,
     );
+    console.error(`\t\t  Error: ${err.message}`);
     process.exit(1);
   }
 }
 
-export function writeChainSpec(specPath: string, chainSpec: any) {
-  try {
-    const data = JSONbig.stringify(chainSpec, null, 2);
-    fs.writeFileSync(specPath, convertExponentials(data));
-  } catch {
-    console.error(
-      `\n\t\t  ${decorators.reverse(
-        decorators.red("  ⚠ failed to write the chain spec with path: "),
-      )} ${specPath}`,
-    );
-    process.exit(1);
-  }
+export async function writeChainSpec(
+  specPath: string,
+  chainSpec: any,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const writeStream = fs.createWriteStream(specPath);
+    // Replacer function to handle BigInt values which are not natively supported in JSON
+    const replacer = (key: string, value: any) =>
+      typeof value === "bigint" ? Number(value) : value;
+    const jsonStream = new JsonStreamStringify(chainSpec, replacer);
+
+    //TODO: we might wanna use the utils convertExponentials here directly. tried once but didnt work, which was strange as they are identical
+    // Transform stream to convert exponential notation to regular numbers
+    // (e.g., 1e+20 -> 100000000000000000000)
+    const exponentialTransform = new Transform({
+      transform(chunk, encoding, callback) {
+        const str = chunk.toString();
+        const converted = str.replace(/e\+[0-9]+/gi, function (exp: string) {
+          const e = parseInt(exp.split("+")[1], 10);
+          return "0".repeat(e);
+        });
+        callback(null, converted);
+      },
+    });
+
+    writeStream.on("error", (err) => {
+      console.error(
+        `\n\t\t  ${decorators.reverse(
+          decorators.red("  ⚠ failed to write the chain spec with path: "),
+        )} ${specPath}`,
+      );
+      reject(err);
+    });
+
+    writeStream.on("finish", resolve);
+
+    jsonStream.on("error", (err: Error) => {
+      console.error(
+        `\n\t\t  ${decorators.reverse(
+          decorators.red("  ⚠ failed to stringify the chain spec: "),
+        )} ${err.message}`,
+      );
+      reject(err);
+    });
+
+    exponentialTransform.on("error", (err: Error) => {
+      console.error(
+        `\n\t\t  ${decorators.reverse(
+          decorators.red("  ⚠ failed to transform the chain spec: "),
+        )} ${err.message}`,
+      );
+      reject(err);
+    });
+
+    jsonStream.pipe(exponentialTransform).pipe(writeStream);
+  });
 }
 
 export async function isRawSpec(specPath: string): Promise<boolean> {
@@ -732,7 +793,7 @@ export async function customizePlainRelayChain(
 ): Promise<void> {
   try {
     // Relay-chain spec customization logic
-    const plainRelayChainSpec = readAndParseChainSpec(specPath);
+    const plainRelayChainSpec = await readAndParseChainSpec(specPath);
     const keyType = specHaveSessionsKeys(plainRelayChainSpec)
       ? "session"
       : "aura";
