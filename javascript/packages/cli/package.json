@@ -23,6 +23,7 @@
     "assets": [
       "../../node_modules/@polkadot/**/*",
       "../../node_modules/@babel/**/*",
+      "../../node_modules/napi-maybe-compressed-blob*/**/*",
       "../orchestrator/static-configs/*",
       "../orchestrator/dist/providers/podman/resources/configs/*",
       "../orchestrator/dist/test-runner/testReporter*",

@@ -702,36 +702,14 @@ export async function writeChainSpec(
   chainSpec: any,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const writeStream = fs.createWriteStream(specPath);
-    // Replacer function to handle BigInt values which are not natively supported in JSON
     const replacer = (key: string, value: any) =>
       typeof value === "bigint" ? Number(value) : value;
     const jsonStream = new JsonStreamStringify(chainSpec, replacer);
+    const chunks: string[] = [];
 
-    //TODO: we might wanna use the utils convertExponentials here directly. tried once but didnt work, which was strange as they are identical
-    // Transform stream to convert exponential notation to regular numbers
-    // (e.g., 1e+20 -> 100000000000000000000)
-    const exponentialTransform = new Transform({
-      transform(chunk, encoding, callback) {
-        const str = chunk.toString();
-        const converted = str.replace(/e\+[0-9]+/gi, function (exp: string) {
-          const e = parseInt(exp.split("+")[1], 10);
-          return "0".repeat(e);
-        });
-        callback(null, converted);
-      },
+    jsonStream.on("data", (chunk: string | Buffer) => {
+      chunks.push(typeof chunk === "string" ? chunk : chunk.toString());
     });
-
-    writeStream.on("error", (err) => {
-      console.error(
-        `\n\t\t  ${decorators.reverse(
-          decorators.red("  ⚠ failed to write the chain spec with path: "),
-        )} ${specPath}`,
-      );
-      reject(err);
-    });
-
-    writeStream.on("finish", resolve);
 
     jsonStream.on("error", (err: Error) => {
       console.error(
@@ -742,16 +720,21 @@ export async function writeChainSpec(
       reject(err);
     });
 
-    exponentialTransform.on("error", (err: Error) => {
-      console.error(
-        `\n\t\t  ${decorators.reverse(
-          decorators.red("  ⚠ failed to transform the chain spec: "),
-        )} ${err.message}`,
-      );
-      reject(err);
+    jsonStream.on("end", () => {
+      try {
+        const fullJson = chunks.join("");
+        const converted = convertExponentials(fullJson);
+        fs.writeFileSync(specPath, converted);
+        resolve();
+      } catch (err: any) {
+        console.error(
+          `\n\t\t  ${decorators.reverse(
+            decorators.red("  ⚠ failed to write the chain spec with path: "),
+          )} ${specPath}`,
+        );
+        reject(err);
+      }
     });
-
-    jsonStream.pipe(exponentialTransform).pipe(writeStream);
   });
 }
 
