@@ -1,6 +1,10 @@
 import { decorators, getRandomPort } from "@zombienet/utils";
 import fs from "fs";
-import chainSpecFns, { isRawSpec } from "./chainSpec";
+import chainSpecFns, {
+  isRawSpec,
+  readAndParseChainSpecAsync,
+  writeChainSpecAsync,
+} from "./chainSpec";
 import { getUniqueName } from "./configGenerator";
 import {
   DEFAULT_COLLATOR_IMAGE,
@@ -189,7 +193,7 @@ export async function generateParachainFiles(
 
     try {
       // ensure the correct para_id
-      const paraSpecRaw = readAndParseChainSpec(chainSpecFullPath);
+      const paraSpecRaw = await readAndParseChainSpecAsync(chainSpecFullPath);
       if (paraSpecRaw.para_id) paraSpecRaw.para_id = parachain.id;
       if (paraSpecRaw.paraId) paraSpecRaw.paraId = parachain.id;
 
@@ -200,9 +204,13 @@ export async function generateParachainFiles(
         paraSpecRaw.protocolId = `${paraSpecRaw.protocolId}${random_sufix_to_isolate}`;
       }
 
-      writeChainSpec(chainSpecFullPath, paraSpecRaw);
+      await writeChainSpecAsync(chainSpecFullPath, paraSpecRaw);
     } catch (e: any) {
-      if (e.code !== "ERR_FS_FILE_TOO_LARGE") throw e;
+      if (
+        e.code !== "ERR_FS_FILE_TOO_LARGE" &&
+        e.code !== "ERR_STRING_TOO_LONG"
+      )
+        throw e;
 
       // can't customize para_id
       console.log(

@@ -1,0 +1,67 @@
+{
+  "settings": {
+    "provider": "native"
+  },
+  "relaychain": {
+    "default_command": "/Users/dmoka/dev/polkadot-sdk/target/release/polkadot",
+    "chain": "rococo-local",
+    "nodes": [
+      {
+        "name": "alice",
+        "command": "/Users/dmoka/dev/polkadot-sdk/target/release/polkadot",
+        "args": [
+          "--pruning=archive"
+        ],
+        "rpc_port": 9944,
+        "invulnerable": true
+      },
+      {
+        "name": "bob",
+        "rpc_port": 9955,
+        "invulnerable": true
+      },
+      {
+        "name": "charlie",
+        "rpc_port": 9966,
+        "invulnerable": true
+      },
+      {
+        "name": "dave",
+        "rpc_port": 9977,
+        "invulnerable": true
+      }
+    ]
+  },
+  "types": {},
+  "hrmp_channels": [],
+  "parachains": [
+    {
+      "id": 2034,
+      "cumulus_based": true,
+      "chain": "local",
+      "chain_spec_path": "data/forked-chainspec.json",
+      "collators": [
+        {
+          "name": "alice",
+          "command": "/Users/dmoka/dev/HydraDX-node/target/release/hydradx",
+          "args": [
+            "--pruning=archive",
+            "--rpc-max-connections=5000",
+            "--tx-ban-seconds=5",
+            "--log=info"
+          ],
+          "rpc_port": 9999
+        },
+        {
+          "name": "bob",
+          "command": "/Users/dmoka/dev/HydraDX-node/target/release/hydradx",
+          "args": [
+            "--pruning=archive",
+            "--log=info"
+          ],
+          "rpc_port": 9989
+        }
+      ]
+    }
+  ]
+}

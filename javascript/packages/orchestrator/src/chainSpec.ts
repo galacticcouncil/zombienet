@@ -17,6 +17,8 @@ const JSONbig = require("json-bigint")({ useNativeBigInt: true });
 const debug = require("debug")("zombie::chain-spec");
 
 const JSONStream = require("JSONStream");
+const { parser: streamJsonParser } = require("stream-json");
+const StreamAssembler = require("stream-json/Assembler");
 
 // track 1st staking as default;
 let stakingBond: bigint | undefined;
@@ -497,11 +499,30 @@ export async function changeGenesisConfig(specPath: string, updates: any) {
 }
 
 export async function addBootNodes(specPath: string, addresses: string[]) {
-  let chainSpec;
   try {
-    chainSpec = readAndParseChainSpec(specPath);
+    const chainSpec = await readAndParseChainSpecAsync(specPath);
+
+    // prevent dups bootnodes
+    chainSpec.bootNodes = [...new Set(addresses)];
+    await writeChainSpecAsync(specPath, chainSpec);
+
+    const logTable = new CreateLogTable({ colWidths: [120] });
+    if (addresses.length) {
+      logTable.pushToPrint([
+        [`${decorators.green(chainSpec.name)} ⚙ Added Boot Nodes`],
+        [addresses.join("\n")],
+      ]);
+    } else {
+      logTable.pushToPrint([
+        [`${decorators.green(chainSpec.name)} ⚙ Clear Boot Nodes`],
+      ]);
+    }
   } catch (e: any) {
-    if (e.code !== "ERR_FS_FILE_TOO_LARGE") throw e;
+    if (
+      e.code !== "ERR_FS_FILE_TOO_LARGE" &&
+      e.code !== "ERR_STRING_TOO_LONG"
+    )
+      throw e;
 
     // can't customize bootnodes
     const logLine = ` 🚧 ${decorators.yellow(
@@ -509,23 +530,6 @@ export async function addBootNodes(specPath: string, addresses: string[]) {
     )} 🚧`;
     new CreateLogTable({ colWidths: [120], doubleBorder: true }).pushToPrint([
       [logLine],
-    ]);
-
-    return;
-  }
-
-  // prevent dups bootnodes
-  chainSpec.bootNodes = [...new Set(addresses)];
-  writeChainSpec(specPath, chainSpec);
-  const logTable = new CreateLogTable({ colWidths: [120] });
-  if (addresses.length) {
-    logTable.pushToPrint([
-      [`${decorators.green(chainSpec.name)} ⚙ Added Boot Nodes`],
-      [addresses.join("\n")],
-    ]);
-  } else {
-    logTable.pushToPrint([
-      [`${decorators.green(chainSpec.name)} ⚙ Clear Boot Nodes`],
     ]);
   }
 }
@@ -672,7 +676,10 @@ export function readAndParseChainSpec(specPath: string) {
   try {
     chainSpec = JSONbig.parse(rawdata);
     return chainSpec;
-  } catch {
+  } catch (e: any) {
+    if (e.code === "ERR_STRING_TOO_LONG") {
+      throw e;
+    }
     console.error(
       `\n\t\t  ${decorators.red("  ⚠ failed to parse the chain spec")}`,
     );
@@ -684,7 +691,10 @@ export function writeChainSpec(specPath: string, chainSpec: any) {
   try {
     const data = JSONbig.stringify(chainSpec, null, 2);
     fs.writeFileSync(specPath, convertExponentials(data));
-  } catch {
+  } catch (e: any) {
+    if (e.code === "ERR_STRING_TOO_LONG") {
+      throw e;
+    }
     console.error(
       `\n\t\t  ${decorators.reverse(
         decorators.red("  ⚠ failed to write the chain spec with path: "),
@@ -692,6 +702,95 @@ export function writeChainSpec(specPath: string, chainSpec: any) {
     );
     process.exit(1);
   }
+}
+
+// --- Async streaming variants for large (>400MB) chain spec files ---
+
+const FILE_SIZE_THRESHOLD = 400 * 1024 * 1024; // 400MB
+
+export async function readAndParseChainSpecAsync(
+  specPath: string,
+): Promise<any> {
+  const stats = fs.statSync(specPath);
+
+  if (stats.size < FILE_SIZE_THRESHOLD) {
+    return readAndParseChainSpec(specPath);
+  }
+
+  debug(
+    `File ${specPath} is ${(stats.size / (1024 * 1024)).toFixed(0)}MB, using streaming parser`,
+  );
+
+  return new Promise((resolve, reject) => {
+    const fileStream = fs.createReadStream(specPath);
+    const jsonParser = streamJsonParser();
+    const asm = StreamAssembler.connectTo(jsonParser);
+
+    fileStream.pipe(jsonParser);
+
+    asm.on("done", (asm: any) => resolve(asm.current));
+    fileStream.on("error", reject);
+    jsonParser.on("error", reject);
+  });
+}
+
+function writeToStream(
+  stream: fs.WriteStream,
+  data: string,
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (!stream.write(data)) {
+      stream.once("drain", resolve);
+    } else {
+      resolve();
+    }
+  });
+}
+
+async function writeValueToStream(
+  stream: fs.WriteStream,
+  value: any,
+): Promise<void> {
+  if (value === null || value === undefined) {
+    await writeToStream(stream, "null");
+  } else if (typeof value === "bigint") {
+    await writeToStream(stream, value.toString());
+  } else if (Array.isArray(value)) {
+    await writeToStream(stream, "[");
+    for (let i = 0; i < value.length; i++) {
+      if (i > 0) await writeToStream(stream, ",");
+      await writeValueToStream(stream, value[i]);
+    }
+    await writeToStream(stream, "]");
+  } else if (typeof value === "object") {
+    await writeToStream(stream, "{");
+    const keys = Object.keys(value);
+    for (let i = 0; i < keys.length; i++) {
+      if (i > 0) await writeToStream(stream, ",");
+      await writeToStream(stream, JSON.stringify(keys[i]) + ":");
+      await writeValueToStream(stream, value[keys[i]]);
+    }
+    await writeToStream(stream, "}");
+  } else {
+    await writeToStream(
+      stream,
+      convertExponentials(JSON.stringify(value)),
+    );
+  }
+}
+
+export async function writeChainSpecAsync(
+  specPath: string,
+  chainSpec: any,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stream = fs.createWriteStream(specPath);
+    stream.on("error", reject);
+    stream.on("finish", resolve);
+    writeValueToStream(stream, chainSpec)
+      .then(() => stream.end())
+      .catch(reject);
+  });
 }
 
 export async function isRawSpec(specPath: string): Promise<boolean> {
@@ -794,8 +893,10 @@ export default {
   changeGenesisConfig,
   clearAuthorities,
   readAndParseChainSpec,
+  readAndParseChainSpecAsync,
   specHaveSessionsKeys,
   writeChainSpec,
+  writeChainSpecAsync,
   getNodeKey,
   addParaCustom,
   addCollatorSelection,

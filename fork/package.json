@@ -1,0 +1,26 @@
+{
+  "name": "fork",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build:zombienet": "cd ../javascript && npm run build && npm run package:macos:arm64",
+    "state:prepare": "node --max-old-space-size=8192 prepare-state-for-zombienet.js data/state.json data/forked-chainspec.json",
+    "zombie:init": "NODE_OPTIONS=--max-old-space-size=8192 ../javascript/bins/zombienet-macos-arm64 -l text -fd data spawn config.json",
+    "para:alice": "tail -F data/alice-1.log",
+    "para:bob": "tail -F data/bob-1.log",
+    "relay:alice": "tail -F data/alice.log",
+    "relay:bob": "tail -F data/bob.log",
+    "relay:charlie": "tail -F data/charlie.log",
+    "relay:dave": "tail -F data/dave.log",
+    "clean": "rm -rf data/alice* data/bob* data/charlie* data/dave* data/cfg data/2034 data/temp* data/logs data/*.log data/*.yaml data/zombie.json data/zombie-wrapper.sh data/rococo-local* data/local-* data/export-* data/namespace data/finished.txt data/forked-chainspec.json",
+    "zombienet": "run-p -lr zombie:init para:* relay:*",
+    "start:raw": "run-s -n build:zombienet clean state:prepare zombienet"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@polkadot/types": "^15.0.2",
+    "npm-run-all": "^4.1.5",
+    "stream-json": "^1.8.0"
+  }
+}
