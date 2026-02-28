@@ -30,17 +30,18 @@ COPY --from=builder /build/javascript/bins/zombienet-linux-x64 /usr/local/bin/zo
 RUN chmod +x /usr/local/bin/zombienet
 RUN zombienet version
 
-# Download polkadot-sdk binaries
+# Download polkadot-sdk binaries (pinned version)
+ARG POLKADOT_SDK_RELEASE=polkadot-stable2412-1
 RUN mkdir -p /zombienet/polkadot-sdk/target/release
 RUN for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
-    wget -q https://github.com/paritytech/polkadot-sdk/releases/latest/download/$binary \
+    wget -q https://github.com/paritytech/polkadot-sdk/releases/download/${POLKADOT_SDK_RELEASE}/$binary \
         -O /zombienet/polkadot-sdk/target/release/$binary \
     && chmod +x /zombienet/polkadot-sdk/target/release/$binary \
     && /zombienet/polkadot-sdk/target/release/$binary --version; \
     done
 
-# Download hydradx and scraper binaries
-ARG HYDRATION_BIN_URL=https://github.com/galacticcouncil/hydration-node/releases/latest/download
+# Download hydradx and scraper binaries (pinned version)
+ARG HYDRATION_BIN_URL=https://github.com/galacticcouncil/hydration-node/releases/download/v43.0.2
 
 RUN mkdir -p /zombienet/hydration-node/target/release
 RUN wget -q $HYDRATION_BIN_URL/hydradx -O /zombienet/hydration-node/target/release/hydradx && \
