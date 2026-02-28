@@ -31,7 +31,7 @@ RUN chmod +x /usr/local/bin/zombienet
 RUN zombienet version
 
 # Download polkadot-sdk binaries (pinned version)
-ARG POLKADOT_SDK_RELEASE=polkadot-stable2412-1
+ARG POLKADOT_SDK_RELEASE=polkadot-stable2512-1
 RUN mkdir -p /zombienet/polkadot-sdk/target/release
 RUN for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
     wget -q https://github.com/paritytech/polkadot-sdk/releases/download/${POLKADOT_SDK_RELEASE}/$binary \
