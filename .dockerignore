@@ -1,0 +1,8 @@
+node_modules/
+fork/node_modules/
+fork/data/
+fork/state.json
+fork/forked-chainspec.json
+.git/
+crates/target/
+javascript/bins/
